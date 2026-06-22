@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quick Poll</title>
+<style>
+  :root {
+    --yes: #2e7d32; --yes-bg: #e8f5e9;
+    --no: #c62828;  --no-bg: #ffebee;
+    --maybe: #f57f17; --maybe-bg: #fff8e1;
+    --line: #d9dde2; --ink: #222; --muted: #667;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); margin: 0; background: #f5f6f8;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 18px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+  label.field { display: block; font-weight: 600; margin: 14px 0 5px; }
+  input[type=text], input[type=month], textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line);
+    border-radius: 7px; font: inherit;
+  }
+  input[type=month] { width: auto; }
+  textarea { resize: vertical; min-height: 90px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .days { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+  .day-chip {
+    display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+    padding: 5px 10px; border-radius: 18px; cursor: pointer; user-select: none; background:#fff; font-size: 13px;
+  }
+  .day-chip.weekend { background: #f3f4f6; color: var(--muted); }
+  .day-chip input { margin: 0; }
+  .smallbtns { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .smallbtns button { font-size:13px; padding:5px 10px; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--line);
+    background: #fff; padding: 9px 15px; border-radius: 7px;
+  }
+  button.primary { background: #1565c0; color: #fff; border-color: #1565c0; }
+  button.primary:hover { background: #0d47a1; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tab { padding: 8px 14px; border-radius: 7px 7px 0 0; border: 1px solid var(--line); background: #eceef1; cursor:pointer; }
+  .tab.active { background: #fff; border-bottom-color: #fff; font-weight: 700; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: center; white-space: nowrap; }
+  th.name, td.name { text-align: left; position: sticky; left: 0; background: #fff; z-index: 1; }
+  thead th { background: #f0f2f5; }
+  thead th.name { background: #f0f2f5; }
+  .v-yes   { background: var(--yes-bg);   color: var(--yes);   font-weight: 700; }
+  .v-no    { background: var(--no-bg);    color: var(--no); }
+  .v-maybe { background: var(--maybe-bg); color: var(--maybe); }
+  .tally td { font-weight: 700; }
+  .best { outline: 3px solid #1565c0; outline-offset: -3px; }
+  .resp-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+  .resp-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .resp-row.weekend { background: #f7f8fa; }
+  .resp-row .dname { flex: 1; font-weight: 600; }
+  .opt { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; background: #fff; }
+  .opt.sel.yes   { background: var(--yes);   color: #fff; border-color: var(--yes); }
+  .opt.sel.no    { background: var(--no);    color: #fff; border-color: var(--no); }
+  .opt.sel.maybe { background: var(--maybe); color: #fff; border-color: var(--maybe); }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .hidden { display: none; }
+  .notice { background:#fffde7; border:1px solid #ffe082; padding:10px 12px; border-radius:8px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Quick Poll</h1>
+  <p class="sub">A no-server scheduling poll. Anyone in the group can create a poll; everything runs in the browser and responses travel by email.</p>
+
+  <div class="tabs">
+    <div class="tab" data-tab="create">1 · Create</div>
+    <div class="tab" data-tab="respond">2 · Respond</div>
+    <div class="tab" data-tab="tally">3 · Tally</div>
+  </div>
+
+  <!-- ============ CREATE ============ -->
+  <section id="tab-create" class="card">
+    <h2>Create a poll</h2>
+    <label class="field">Poll title</label>
+    <input type="text" id="c-title" placeholder="e.g. Team meeting — July">
+
+    <label class="field">Your email (responses come back to whoever creates the poll)</label>
+    <input type="text" id="c-organizer" placeholder="you@example.com">
+
+    <label class="field">Month</label>
+    <input type="month" id="c-month">
+    <div class="smallbtns">
+      <button id="c-weekdays">Weekdays only</button>
+      <button id="c-all">All days</button>
+      <button id="c-clear">Clear</button>
+    </div>
+    <div class="hint">Pick a month, then check/uncheck specific dates. Weekdays are pre-selected; uncheck any date to exclude it.</div>
+    <div class="days" id="c-days"></div>
+
+    <label class="field">Invite emails (optional, comma or space separated)</label>
+    <textarea id="c-emails" placeholder="alice@x.org, bob@y.org, ..."></textarea>
+
+    <div class="btnrow">
+      <button class="primary" id="c-build">Build poll</button>
+    </div>
+
+    <div id="c-out" class="hidden">
+      <h2>Share it</h2>
+      <p class="notice">Send the link below to your group. Each person opens it, makes their picks, and emails you back a short response code.</p>
+      <label class="field">Shareable link</label>
+      <textarea id="c-link" readonly></textarea>
+      <div class="btnrow">
+        <button id="c-copy">Copy link</button>
+        <button id="c-mail" class="primary">Open invite email</button>
+        <button id="c-open">Preview as respondent</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RESPOND ============ -->
+  <section id="tab-respond" class="card hidden">
+    <h2 id="r-title">Respond</h2>
+    <div id="r-noload" class="notice">Open the poll link your organizer sent you and this tab fills in automatically. (Or use Create → Preview.)</div>
+    <div id="r-form" class="hidden">
+      <label class="field">Your name</label>
+      <input type="text" id="r-name" placeholder="Your name">
+      <div class="resp-grid" id="r-rows"></div>
+      <div class="btnrow">
+        <button class="primary" id="r-build">Generate my response</button>
+      </div>
+      <div id="r-out" class="hidden">
+        <label class="field">Your response code</label>
+        <textarea id="r-code" readonly></textarea>
+        <div class="btnrow">
+          <button id="r-copy">Copy code</button>
+          <button id="r-mail" class="primary">Email response to organizer</button>
+        </div>
+        <p class="hint">If the email button doesn't open your mail app, copy the code above and paste it into a reply.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TALLY ============ -->
+  <section id="tab-tally" class="card hidden">
+    <h2>Tally responses</h2>
+    <p class="hint">Paste the response codes you received (one per line, or paste whole emails — codes are detected automatically).</p>
+    <textarea id="t-input" placeholder="Paste response codes or emails here..."></textarea>
+    <div class="btnrow">
+      <button class="primary" id="t-build">Show results</button>
+      <button id="t-csv" class="hidden">Download CSV</button>
+    </div>
+    <div id="t-out"></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+
+const WD_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MO_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+// ---- date helpers (timezone-safe: dates handled as plain YYYY-MM-DD) ----
+function isoToParts(iso){ const [y,m,d] = iso.split('-').map(Number); return {y,m,d}; }
+function dowOf(iso){ const {y,m,d} = isoToParts(iso); return new Date(y, m-1, d).getDay(); }
+function isWeekend(iso){ const w = dowOf(iso); return w === 0 || w === 6; }
+function labelOf(iso){ const {m,d} = isoToParts(iso); return WD_SHORT[dowOf(iso)] + ' ' + MO_SHORT[m-1] + ' ' + d; }
+function pad(n){ return n < 10 ? '0'+n : ''+n; }
+function daysInMonth(y, m){ return new Date(y, m, 0).getDate(); } // m = 1-12
+
+// ---- encode / decode (URL-safe base64 of JSON, utf-8 safe) ----
+function enc(obj){
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function dec(str){
+  let b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+  while (b64.length % 4) b64 += '=';
+  return JSON.parse(decodeURIComponent(escape(atob(b64))));
+}
+
+// ---- tabs ----
+const tabs = document.querySelectorAll('.tab');
+function showTab(name){
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  ['create','respond','tally'].forEach(n =>
+    document.getElementById('tab-'+n).classList.toggle('hidden', n !== name));
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+// ============ CREATE ============
+const cDays = document.getElementById('c-days');
+const cMonth = document.getElementById('c-month');
+
+// default month = current month
+(function(){ const now = new Date(); cMonth.value = now.getFullYear() + '-' + pad(now.getMonth()+1); })();
+
+function renderMonth(mode){ // mode: 'weekdays' | 'all' | 'clear'
+  cDays.innerHTML = '';
+  if (!cMonth.value) return;
+  const [y, m] = cMonth.value.split('-').map(Number);
+  const n = daysInMonth(y, m);
+  for (let d = 1; d <= n; d++){
+    const iso = y + '-' + pad(m) + '-' + pad(d);
+    const weekend = isWeekend(iso);
+    let checked = mode === 'all' ? true : mode === 'clear' ? false : !weekend; // weekdays default
+    const chip = document.createElement('label');
+    chip.className = 'day-chip' + (weekend ? ' weekend' : '');
+    chip.innerHTML = `<input type="checkbox" value="${iso}" ${checked?'checked':''}><span>${labelOf(iso)}</span>`;
+    cDays.appendChild(chip);
+  }
+}
+renderMonth('weekdays');
+cMonth.addEventListener('change', () => renderMonth('weekdays'));
+document.getElementById('c-weekdays').addEventListener('click', () => renderMonth('weekdays'));
+document.getElementById('c-all').addEventListener('click', () => renderMonth('all'));
+document.getElementById('c-clear').addEventListener('click', () => renderMonth('clear'));
+
+let currentPoll = null;
+
+document.getElementById('c-build').addEventListener('click', () => {
+  const title = document.getElementById('c-title').value.trim() || 'Untitled poll';
+  const organizer = document.getElementById('c-organizer').value.trim();
+  const dates = [...cDays.querySelectorAll('input:checked')].map(c => c.value).sort();
+  if (!dates.length){ alert('Pick at least one date.'); return; }
+  currentPoll = { t: title, o: organizer, d: dates };
+  const link = location.origin + location.pathname + '#poll=' + enc(currentPoll);
+  document.getElementById('c-link').value = link;
+  document.getElementById('c-out').classList.remove('hidden');
+
+  const emails = document.getElementById('c-emails').value.split(/[\s,;]+/).filter(Boolean);
+  document.getElementById('c-mail').onclick = () => {
+    const body =
+`You're invited to a scheduling poll: ${title}
+
+Open this link, pick Yes / Maybe / No for each date, then email your response code back to me:
+
+${link}
+
+Thanks!`;
+    location.href = 'mailto:' + encodeURIComponent(emails.join(','))
+      + '?subject=' + encodeURIComponent('Poll: ' + title)
+      + '&body=' + encodeURIComponent(body);
+  };
+});
+
+document.getElementById('c-copy').addEventListener('click', () => {
+  const ta = document.getElementById('c-link'); ta.select();
+  navigator.clipboard?.writeText(ta.value); flash(document.getElementById('c-copy'),'Copied!');
+});
+document.getElementById('c-open').addEventListener('click', () => {
+  location.hash = '#poll=' + enc(currentPoll); loadFromHash(); showTab('respond');
+});
+
+// ============ RESPOND ============
+let activePoll = null;
+const rRows = document.getElementById('r-rows');
+let rChoices = {};
+
+function renderRespond(poll){
+  activePoll = poll; rChoices = {};
+  document.getElementById('r-title').textContent = 'Respond — ' + poll.t;
+  document.getElementById('r-noload').classList.add('hidden');
+  document.getElementById('r-form').classList.remove('hidden');
+  document.getElementById('r-out').classList.add('hidden');
+  rRows.innerHTML = '';
+  poll.d.forEach(iso => {
+    const row = document.createElement('div');
+    row.className = 'resp-row' + (isWeekend(iso) ? ' weekend' : '');
+    row.innerHTML = `<span class="dname">${labelOf(iso)}</span>`;
+    ['yes','maybe','no'].forEach(v => {
+      const b = document.createElement('button');
+      b.className = 'opt ' + v; b.textContent = v[0].toUpperCase()+v.slice(1);
+      b.onclick = () => {
+        rChoices[iso] = v;
+        [...row.querySelectorAll('.opt')].forEach(o => o.classList.remove('sel'));
+        b.classList.add('sel');
+      };
+      row.appendChild(b);
+    });
+    rRows.appendChild(row);
+  });
+}
+
+document.getElementById('r-build').addEventListener('click', () => {
+  const name = document.getElementById('r-name').value.trim();
+  if (!name){ alert('Please enter your name.'); return; }
+  const ans = activePoll.d.map(iso => ({yes:1,maybe:2,no:0}[rChoices[iso] || 'no']));
+  // embed dates + title so the tally works without the original link
+  const resp = { n: name, a: ans, p: activePoll.t, d: activePoll.d };
+  const code = 'POLL1:' + enc(resp);
+  document.getElementById('r-code').value = code;
+  document.getElementById('r-out').classList.remove('hidden');
+
+  document.getElementById('r-mail').onclick = () => {
+    const to = activePoll.o ? encodeURIComponent(activePoll.o) : '';
+    const body = `My response for "${activePoll.t}":\n\n${code}\n`;
+    location.href = 'mailto:' + to
+      + '?subject=' + encodeURIComponent('Poll response: ' + activePoll.t + ' — ' + name)
+      + '&body=' + encodeURIComponent(body);
+  };
+});
+document.getElementById('r-copy').addEventListener('click', () => {
+  const ta = document.getElementById('r-code'); ta.select();
+  navigator.clipboard?.writeText(ta.value); flash(document.getElementById('r-copy'),'Copied!');
+});
+
+// ============ TALLY ============
+const LABELS = ['No','Yes','Maybe'];
+const CLS = ['v-no','v-yes','v-maybe'];
+let lastTally = null; // {days, responses} for CSV
+
+document.getElementById('t-build').addEventListener('click', () => {
+  const raw = document.getElementById('t-input').value;
+  const codes = raw.match(/POLL1:[A-Za-z0-9\-_]+/g) || [];
+  const out = document.getElementById('t-out');
+  if (!codes.length){ out.innerHTML = '<p class="notice">No response codes found. Paste codes that start with POLL1:</p>'; return; }
+
+  const responses = [];
+  let pollTitle = '', days = null;
+  codes.forEach(c => {
+    try {
+      const r = dec(c.replace('POLL1:',''));
+      responses.push(r);
+      pollTitle = pollTitle || r.p;
+      if (!days && Array.isArray(r.d)) days = r.d; // dates embedded in response
+    } catch(e){}
+  });
+  if (!responses.length){ out.innerHTML = '<p class="notice">Couldn\'t read those codes.</p>'; return; }
+  if (!days){ // fallback: use active/hash poll, else generic
+    days = (activePoll && activePoll.d) || (readPollHash() && readPollHash().d) || null;
+  }
+  if (!days){ const len = Math.max(...responses.map(r => r.a.length)); days = Array.from({length:len},(_,i)=>'#'+(i+1)); }
+
+  let html = `<h2>${escapeHtml(pollTitle || 'Results')}</h2><div class="tablewrap"><table><thead><tr><th class="name">Name</th>`;
+  days.forEach(iso => html += `<th>${escapeHtml(/^\d{4}-/.test(iso) ? labelOf(iso) : iso)}</th>`);
+  html += `</tr></thead><tbody>`;
+  responses.forEach(r => {
+    html += `<tr><td class="name">${escapeHtml(r.n)}</td>`;
+    days.forEach((_,idx) => { const v = r.a[idx] ?? 0; html += `<td class="${CLS[v]}">${LABELS[v]}</td>`; });
+    html += `</tr>`;
+  });
+  const counts = days.map((_,idx) => {
+    let yes=0,maybe=0,no=0;
+    responses.forEach(r => { const v=r.a[idx]??0; v===1?yes++:v===2?maybe++:no++; });
+    return {yes,maybe,no};
+  });
+  const best = Math.max(...counts.map(c => c.yes*2 + c.maybe));
+  html += `<tr class="tally"><td class="name">✓ Yes</td>`;
+  counts.forEach(c => { const s=c.yes*2+c.maybe; html += `<td class="v-yes ${s===best&&best>0?'best':''}">${c.yes}</td>`; });
+  html += `</tr><tr class="tally"><td class="name">? Maybe</td>`;
+  counts.forEach(c => html += `<td class="v-maybe">${c.maybe}</td>`);
+  html += `</tr><tr class="tally"><td class="name">✗ No</td>`;
+  counts.forEach(c => html += `<td class="v-no">${c.no}</td>`);
+  html += `</tr></tbody></table></div>`;
+  html += `<p class="hint">${responses.length} response(s). Highlighted column = best availability (Yes = 2 pts, Maybe = 1).</p>`;
+  out.innerHTML = html;
+
+  lastTally = { days, responses, title: pollTitle };
+  document.getElementById('t-csv').classList.remove('hidden');
+});
+
+document.getElementById('t-csv').addEventListener('click', () => {
+  if (!lastTally) return;
+  const { days, responses } = lastTally;
+  const head = ['Name', ...days.map(iso => /^\d{4}-/.test(iso) ? labelOf(iso) : iso)];
+  const rows = responses.map(r => [r.n, ...days.map((_,i)=>LABELS[r.a[i]??0])]);
+  const csv = [head, ...rows].map(row => row.map(cell => '"'+String(cell).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'poll-results.csv'; a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ---- utilities ----
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function flash(btn, msg){ const o = btn.textContent; btn.textContent = msg; setTimeout(()=>btn.textContent=o, 1200); }
+function readPollHash(){
+  const m = location.hash.match(/poll=([A-Za-z0-9\-_]+)/);
+  if (!m) return null;
+  try { return dec(m[1]); } catch(e){ return null; }
+}
+function loadFromHash(){ const poll = readPollHash(); if (poll){ renderRespond(poll); showTab('respond'); } }
+
+if (location.hash.includes('poll=')) loadFromHash();
+else showTab('create');
+</script>
+</body>
+</html>
