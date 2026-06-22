@@ -315,23 +315,39 @@ const LABELS = ['No','Yes','Maybe'];
 const CLS = ['v-no','v-yes','v-maybe'];
 let lastTally = null; // {days, responses} for CSV
 
+// Robustly pull responses out of pasted text. Codes may be wrapped across
+// lines (mail clients/chat insert breaks) or followed by prose, so for each
+// "POLL1:" marker we strip non-base64 chars, then trim from the end until the
+// longest prefix decodes to a valid response. Tolerant of spaces and newlines.
+function extractResponses(raw){
+  const out = [];
+  const starts = [];
+  const re = /POLL1:/g; let m;
+  while ((m = re.exec(raw)) !== null) starts.push(m.index);
+  starts.forEach((s, i) => {
+    const end = (i + 1 < starts.length) ? starts[i + 1] : raw.length;
+    let chunk = raw.slice(s + 6, end).replace(/[^A-Za-z0-9\-_]/g, '');
+    for (let len = chunk.length; len >= 8; len--){
+      try {
+        const o = dec(chunk.slice(0, len));
+        if (o && typeof o.n === 'string' && Array.isArray(o.a)){ out.push(o); break; }
+      } catch(e){}
+    }
+  });
+  return out;
+}
+
 document.getElementById('t-build').addEventListener('click', () => {
   const raw = document.getElementById('t-input').value;
-  const codes = raw.match(/POLL1:[A-Za-z0-9\-_]+/g) || [];
   const out = document.getElementById('t-out');
-  if (!codes.length){ out.innerHTML = '<p class="notice">No response codes found. Paste codes that start with POLL1:</p>'; return; }
+  const responses = extractResponses(raw);
+  if (!responses.length){ out.innerHTML = '<p class="notice">No valid response codes found. Paste the codes that start with POLL1: (extra spaces or line breaks are fine).</p>'; return; }
 
-  const responses = [];
   let pollTitle = '', days = null;
-  codes.forEach(c => {
-    try {
-      const r = dec(c.replace('POLL1:',''));
-      responses.push(r);
-      pollTitle = pollTitle || r.p;
-      if (!days && Array.isArray(r.d)) days = r.d; // dates embedded in response
-    } catch(e){}
+  responses.forEach(r => {
+    pollTitle = pollTitle || r.p;
+    if (!days && Array.isArray(r.d)) days = r.d; // dates embedded in response
   });
-  if (!responses.length){ out.innerHTML = '<p class="notice">Couldn\'t read those codes.</p>'; return; }
   if (!days){ // fallback: use active/hash poll, else generic
     days = (activePoll && activePoll.d) || (readPollHash() && readPollHash().d) || null;
   }
